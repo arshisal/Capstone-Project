@@ -1,4 +1,4 @@
-Downtown Toronto Air Quality Prediction Leveraging Environment Canada Data
+# Downtown Toronto Air Quality Prediction Leveraging Environment Canada Data
 
 Air pollution is linked to many health issues such as cardiovascular deaths, heart disease, lung cancer and strokes. 
 Large cities are increasingly facing the episodes of critically high levels of air pollution which is affecting the public 
@@ -18,22 +18,22 @@ and comparison of the performance of these three approaches. The approaches sele
 Machines and Monte Carlo time series. RStudio is the selected tool for performing these analysis (This analysis and approach
 is inspired by Ref. 3).
 
-References
+# References
 Ref. 1 - Data retrieved from: Ministry of the Environment, Conservation and Parks. 
 Ref. 2 - Data retrieved from: Government of Canada Environment and Natural Resources. 
 Ref. 3 -  Arhami, M., Kamali, N., & Rajabi, M. M. (2013). Predicting hourly air pollutant levels using artificial neural networks coupled with uncertainty analysis by Monte Carlo simulations. Environmental Science and Pollution Research, 20(7), 4777–4789. doi: 10.1007/s11356-012-1451-6
 
-Appendix 1.1
+# Appendix 1.1
 List of Attribute Information:
-Date (DD/MM/YYYY)
-Time (HH:MM)
-CO (Carbon Monoxide concentration of CO ppm - parts per million)
-NO (Nitrogen Oxide concentration ppb - parts per billion)
-NOx (Nitrogen Oxides concentration ppb - parts per billion)
-NO2 (Nitrogen Dioxide concentration ppb - parts per billion)
-O3 (Ozon concentration ppb - parts per billion)
-PM2.5 (Fine Particulate Matter, µg/m^3 - microgram per cubic meter)
-Temperature (Degrees Celsius)
-Relative Humidity (% Rel. H)
-Wind Direction(deg. Wind Dir)
-Wind Speed (km/h)
+* Date (DD/MM/YYYY)
+* Time (HH:MM)
+* CO (Carbon Monoxide concentration of CO ppm - parts per million)
+* NO (Nitrogen Oxide concentration ppb - parts per billion)
+* NOx (Nitrogen Oxides concentration ppb - parts per billion)
+* NO2 (Nitrogen Dioxide concentration ppb - parts per billion)
+* O3 (Ozon concentration ppb - parts per billion)
+* PM2.5 (Fine Particulate Matter, µg/m^3 - microgram per cubic meter)
+* Temperature (Degrees Celsius)
+* Relative Humidity (% Rel. H)
+* Wind Direction(deg. Wind Dir)
+* Wind Speed (km/h)

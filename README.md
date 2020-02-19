@@ -12,3 +12,7 @@ pollution on health and costs associated.
 #### [Data Sources](https://github.com/arshisal/Capstone-Project/blob/master/Data%20Sources.md)
 
 #### [Abstract](https://github.com/arshisal/Capstone-Project/blob/master/Abstract.md)
+
+#### Data Prep and EDA
+
++ [Data Prep and Exploratory Data Analysis for Pollutants](https://github.com/arshisal/Capstone-Project/blob/master/EDA_Pollutants_Test.html)

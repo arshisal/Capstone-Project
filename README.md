@@ -14,7 +14,7 @@ pollution on health and costs associated.
 #### [Abstract](https://github.com/arshisal/Capstone-Project/blob/master/Abstract.md)
 
 #### Data Preperation
-+ [Data Prep and Exploratory Data Analysis for Pollutants](https://github.com/arshisal/Capstone-Project/blob/master/Data%20Prep%20Pollutants%20rmarkdown.Rmd)
++ [Data Prep from the Raw Data](https://github.com/arshisal/Capstone-Project/blob/master/Data%20Prep%20Pollutants%20rmarkdown.Rmd)
 #### Technically Correct Data
 + TBD
 #### Exploratory Data Analysis

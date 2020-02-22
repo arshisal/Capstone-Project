@@ -1,0 +1,208 @@
+---
+title: "Technically Correct Data Preparation"
+author: "Saloomeh (Sally) Arshi"
+date: "20/02/2020"
+output: 
+  prettydoc::html_pretty:
+    theme: leonids
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Pollutant Data Cleaning
+
+This segment of the code is focused on: identifying the rows of missing data introduced as a result of uploading CSV files and removing them, replacing the -999 and 9999 (as provided by the Ontario Ministry of Environment data definition) with NAs. 
+
+```{r, echo=FALSE}
+rm(list = ls())
+
+# Loading libraries
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(imputeTS)
+library(forecast)
+```
+
+```{r}
+# Read Files
+CO <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/CO.csv')
+NO <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/NO.csv')
+NO2 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/NO2.csv')
+NOX <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/NOX.csv')
+O3 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/O3.csv')
+PM25 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/PM25.csv')
+
+# It appears that there are 9999.00 and -999.00 and NAs in the data for missing values
+
+# Omitting all NAs that are in rows at the end of the data frames
+CO <- na.omit(CO)
+NO <- na.omit(NO)
+NO2 <- na.omit(NO2)
+NOX <- na.omit(NOX)
+O3 <- na.omit(O3)
+PM25 <- na.omit(PM25)
+
+# Replace all 9999.00s and -999.00s with NA
+CO[CO==9999] <- NA
+CO[CO==-999] <- NA
+
+NO[NO==9999] <- NA
+NO[NO==-999] <- NA
+
+NO2[NO2==9999] <- NA
+NO2[NO2==-999] <- NA
+
+NOX[NOX==9999] <- NA
+NOX[NOX==-999] <- NA
+
+O3[O3==9999] <- NA
+O3[O3==-999] <- NA
+
+PM25[PM25==9999] <- NA
+PM25[PM25==-999] <- NA
+
+# Remove the first column from all dataframes as it is no necessary
+CO$X = NULL
+NO$X = NULL
+NO2$X = NULL
+NOX$X = NULL
+O3$X = NULL
+PM25$X = NULL
+```
+
+## Check Summary Statistics of Data
+```{r}
+summary(CO)
+```
+The rest of summary stats are supressed to reduce the size of the knitr file.
+```{r eval=FALSE}
+summary(NO)
+summary(NO2)
+summary(NOX)
+summary(O3)
+summary(PM25)
+```
+
+# Transpose the hourly data
+First need to transpose all hourly data into rows in order to be able to build a time series class of data.
+```{r}
+# Transposing the hourly data
+New_CO <- CO %>%
+  pivot_longer(-Date, names_to = "Hour", values_to = "CO")
+New_NO <- NO %>%
+  pivot_longer(-Date, names_to = "Hour", values_to = "NO")
+New_NO2 <- NO2 %>%
+  pivot_longer(-Date, names_to = "Hour", values_to = "NO2")
+New_NOX <- NOX %>%
+  pivot_longer(-Date, names_to = "Hour", values_to = "NOX")
+New_O3 <- O3 %>%
+  pivot_longer(-Date, names_to = "Hour", values_to = "O3")
+New_PM25 <- PM25 %>%
+  pivot_longer(-Date, names_to = "Hour", values_to = "PM25")
+
+# Convering Dates back to Date format
+New_CO$Date <- as.Date(New_CO$Date)
+New_NO$Date <- as.Date(New_NO$Date)
+New_NO2$Date <- as.Date(New_NO2$Date)
+New_NOX$Date <- as.Date(New_NOX$Date)
+New_O3$Date <- as.Date(New_O3$Date)
+New_PM25$Date <- as.Date(New_PM25$Date)
+```
+
+## Plotting the data
+
+```{r pollutants, echo=FALSE}
+#Plotting the Pollutants
+g_CO <- ggplot(New_CO, aes(x=Date, y=CO))
+p_CO <- g_CO + geom_line() + scale_x_date(date_labels = "%Y", date_breaks = "1 year") + theme_minimal()
+print(p_CO)
+
+g_NO <- ggplot(New_NO, aes(x=Date, y=NO))
+p_NO <- g_NO + geom_line() + scale_x_date(date_labels = "%Y", date_breaks = "1 year") + theme_minimal()
+print(p_NO)
+
+g_NO2 <- ggplot(New_NO2, aes(x=Date, y=NO2))
+p_NO2 <- g_NO2 + geom_line() + scale_x_date(date_labels = "%Y", date_breaks = "1 year") + theme_minimal()
+print(p_NO2)
+
+g_NOX <- ggplot(New_NOX, aes(x=Date, y=NOX))
+p_NOX <- g_NOX + geom_line() + scale_x_date(date_labels = "%Y", date_breaks = "1 year") + theme_minimal()
+print(p_NOX)
+
+g_O3 <- ggplot(New_O3, aes(x=Date, y=O3))
+p_O3 <- g_O3 + geom_line() + scale_x_date(date_labels = "%Y", date_breaks = "1 year") + theme_minimal()
+print(p_O3)
+
+g_PM25 <- ggplot(New_PM25, aes(x=Date, y=PM25))
+p_PM25 <- g_PM25 + geom_line() + scale_x_date(date_labels = "%Y", date_breaks = "1 year") + theme_minimal()
+print(p_PM25)
+```
+
+It is clear from these graphs that there are missing data especially in CO dataset where a chunk of data is missing. The missing data needs to be identified and imputed.
+# NA Statistics 
+To understand what imputation technique would work best. In order to do so, the statNA from ImputeTS package is leveraged to provide a summary statistics on the missing data.
+```{r}
+#Statistics on NAs
+t_CO <- New_CO$CO 
+t_NO <- New_NO$NO
+t_NO2 <- New_NO2$NO2
+t_NOX <- New_NOX$NOX
+t_O3 <- New_O3$O3
+t_PM25 <- New_PM25$PM25
+
+statsNA(t_CO)
+statsNA(t_NO)
+statsNA(t_NO2)
+statsNA(t_NOX)
+statsNA(t_O3)
+statsNA(t_PM25)
+```
+```{r gap size, echo=FALSE}
+#Gap size plot
+par(mfrow=c(1,1))
+plotNA.gapsize(t_CO)
+plotNA.gapsize(t_NO)
+plotNA.gapsize(t_NO2)
+plotNA.gapsize(t_NOX)
+plotNA.gapsize(t_O3)
+plotNA.gapsize(t_PM25)
+```
+
+As indicated there are many missing data which needs to be addressed by imputation. Imputation in time series is handled by converting the data to time series and leveraging the ImputeTS package capabilities. For this purpose interpolation is leveraged and of the three different types of interpolations (spline, linear and stine) the linear option is selected. This choice was based on chacking three different options and the summary stats of the dataset after imputation to see which one has the lowest impact on mean and median of the dataset. It was concluded that the linear option would best the best.
+
+```{r}
+#NA Interpolation Impute Linear, Spline, vs Stinterp
+intp_CO <- na_interpolation(t_CO, option = "linear")
+intp_NO <- na_interpolation(t_NO, option = "linear")
+intp_NO2 <- na_interpolation(t_NO2, option = "linear")
+intp_NOX <- na_interpolation(t_NOX, option = "linear")
+intp_O3 <- na_interpolation(t_O3, option = "linear")
+intp_PM25 <- na_interpolation(t_PM25, option = "linear")
+```
+
+# Post Imputaiton Plot of Technically Correct Data
+
+Below graphs are the data post imputation. The data is now ready for exploratory data analysis.
+
+```{r Technically Correct Data, echo=FALSE}
+#Plotting imputed datasets - hourly time series to check imputation
+TS_IMCO <- ts(intp_CO, start = c(2006, 1), end = c(2010, 12), frequency = 24*365)
+plot(TS_IMCO)
+```
+The rest of graphs suppressed due to the size of knitr file.
+```{r eval=FALSE}
+TS_IMNO <- ts(intp_NO, start = c(2006, 1), end = c(2010, 12), frequency = 24*365)
+plot(TS_IMNO)
+TS_IMNO2 <- ts(intp_NO2, start = c(2006, 1), end = c(2010, 12), frequency = 24*365)
+plot(TS_IMNO2)
+TS_IMNOX <- ts(intp_NOX, start = c(2006, 1), end = c(2010, 12), frequency = 24*365)
+plot(TS_IMNOX)
+TS_IMO3 <- ts(intp_O3, start = c(2006, 1), end = c(2010, 12), frequency = 24*365)
+plot(TS_IMO3)
+TS_IMPM25 <- ts(intp_PM25, start = c(2006, 1), end = c(2010, 12), frequency = 24*365)
+plot(TS_IMPM25)
+```

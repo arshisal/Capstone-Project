@@ -22,7 +22,7 @@ Since the data that is downloaded from website is in raw format, it is essential
 Technically correct data do not have missing data, categories are not missing and the data is ready for Exploratory Analysis stage. Below Rmd files are details of steps taken to prepare the data to technically correct format.
 
 + [Technically Correct Data - Pollutants](https://github.com/arshisal/Capstone-Project/blob/master/TCD_Pollutants.Rmd)
-+[Technically Correct Data - Meteorological](https://github.com/arshisal/Capstone-Project/blob/master/TCD_Meteo.Rmd)
++ [Technically Correct Data - Meteorological](https://github.com/arshisal/Capstone-Project/blob/master/TCD_Meteo.Rmd)
 
 #### Exploratory Data Analysis
 + TBD

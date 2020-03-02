@@ -1,0 +1,138 @@
+---
+title: "Technically Correct Data Preparation (Meteorological)"
+author: "Saloomeh (Sally) Arshi"
+date: "2020-02-22"
+output:
+  prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
+---
+## 
+
+```{r, echo=FALSE, message=FALSE}
+rm(list = ls())
+
+# Loading libraries
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(imputeTS)
+library(forecast)
+```
+Reading data files
+```{r}
+Climate_2006 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/Climate_2006.csv')
+Climate_2007 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/Climate_2007.csv')
+Climate_2008 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/Climate_2008.csv')
+Climate_2009 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/Climate_2009.csv')
+Climate_2010 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/Climate_2010.csv')
+```
+Adding a date column with class date to be able to use time series
+```{r}
+Climate_2006[,2] <- as.Date(Climate_2006[,2])
+Climate_2007[,2] <- as.Date(Climate_2007[,2])
+Climate_2008[,2] <- as.Date(Climate_2008[,2])
+Climate_2009[,2] <- as.Date(Climate_2009[,2])
+Climate_2010[,2] <- as.Date(Climate_2010[,2])
+```
+Separating all features into different dataframes and clearing the unnecessary data from the memory
+```{r}
+Temperature <- rbind(Climate_2006[,c(2,7)], Climate_2007[,c(2,7)], Climate_2008[,c(2,7)], Climate_2009[,c(2,7)], Climate_2010[,c(2,7)])
+Humidity <- rbind(Climate_2006[,c(2,8)], Climate_2007[,c(2,8)], Climate_2008[,c(2,8)], Climate_2009[,c(2,8)], Climate_2010[,c(2,8)])
+Wind_Dir <- rbind(Climate_2006[,c(2,9)], Climate_2007[,c(2,9)], Climate_2008[,c(2,9)], Climate_2009[,c(2,9)], Climate_2010[,c(2,9)])
+Wind_Speed <- rbind(Climate_2006[,c(2,10)], Climate_2007[,c(2,10)], Climate_2008[,c(2,10)], Climate_2009[,c(2,10)], Climate_2010[,c(2,10)])
+```
+Plotting features
+```{r, echo=FALSE}
+ggplot(Temperature, aes(x=Full.Date, y=Temp)) + geom_line() + scale_x_date(date_labels = "%Y", date_breaks = "1 year") + theme_minimal() + labs(x = "Time (Hourly)")
+ggplot(Humidity, aes(x=Full.Date, y=Humidity)) + geom_line() + scale_x_date(date_labels = "%Y", date_breaks = "1 year") + theme_minimal() + labs(x = "Time (Hourly)")
+ggplot(Wind_Dir, aes(x=Full.Date, y=Wind.Dir)) + geom_line() + scale_x_date(date_labels = "%Y", date_breaks = "1 year") + theme_minimal() + labs(x = "Time (Hourly)")
+ggplot(Wind_Speed, aes(x=Full.Date, y=Wind.Spd)) + geom_line() + scale_x_date(date_labels = "%Y", date_breaks = "1 year") + theme_minimal() + labs(x = "Time (Hourly)")
+```
+Summary statistics of missing (NA) data
+```{r}
+statsNA(Temperature$Temp)
+statsNA(Humidity$Humidity)
+statsNA(Wind_Dir$Wind.Dir)
+statsNA(Wind_Speed$Wind.Spd)
+
+#Plotting NAs (missing data)
+plotNA.gapsize(Temperature$Temp)
+plotNA.gapsize(Humidity$Humidity)
+plotNA.gapsize(Wind_Dir$Wind.Dir)
+plotNA.gapsize(Wind_Speed$Wind.Spd)
+
+#Plotting NAs distrobution
+plotNA.distribution(Temperature$Temp)
+plotNA.distribution(Humidity$Humidity)
+plotNA.distribution(Wind_Dir$Wind.Dir)
+plotNA.distribution(Wind_Speed$Wind.Spd)
+```
+
+# Missing Data Imputation
+This missing data imputation in the case of atmospheric parameters should be handled with care. For parameters such as temperature, the assumption of linear or semi-linear interpolation might be valid and applicable. However, for the parameters such as wind speed and wind direction not so much and that is due the fact that naturally, there are hours and times during a given day that there is no wind. Therefore, understanding this consideration the proposed approach for wind speed and wind direction is to replace the NAs with zero speed and no direction (no wind). This assumption holds true and valid for cases of consecutive missing NAs in the data set.
+Although the same logic will not be applicable to the 7311 consecutive NAs in the two data sets (wind speed and wind direction) will simply be replaced with zeros. These consecutive hours are indicative of a measuring instrument malfunctioning for over 300 days. A quick look at the dataset, it is confirmed that the original dataset, is missing wind speed and wind direction data between 2010-03-02 17:00 till 2010-12-31 23:00. In order to resolve for this issue, the data from a nearby weather station located at another downtown weather stations was selected to replace the missing data. This method is one of the approaches suggested by NOAA in weather analysis. However this will in fact create a certain element of inaccuracy, it is the best possible option.Below is the process of replacing the missing data.
+During the same period (from 2010-03-02 to 2010-04-01) a total of 703 data points are missing from Temperature and Humidity as well, which are replaced with the same logic as above.
+```{r, , warning=FALSE, message=FALSE}
+IMmod_2010 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/IMClimate_2010.csv', stringsAsFactors = FALSE, header = TRUE)
+
+sub1_climate2010 <- IMmod_2010[25:nrow(IMmod_2010), c(9,10)]
+sub2_climate2010 <- IMmod_2010[42:744, c(7,8)]
+
+# Replacing all missing data with another station's data
+Climate_2010$Wind.Dir <- replace(Climate_2010$Wind.Dir, c(1440:8760), sub1_climate2010$Wind.Dir)
+Climate_2010$Wind.Spd <- replace(Climate_2010$Wind.Spd, c(1440:8760), sub1_climate2010$Wind.Spd)
+
+Climate_2010$Temp <- replace(Climate_2010$Temp, c(1458:2161), sub2_climate2010$Temp)
+Climate_2010$Humidity <- replace(Climate_2010$Humidity, c(1458:2161), sub2_climate2010$Humidity)
+```
+Now re-checking the NA distrubution and summary stats
+```{r}
+Temperature <- rbind(Climate_2006[,c(2,7)], Climate_2007[,c(2,7)], Climate_2008[,c(2,7)], Climate_2009[,c(2,7)], Climate_2010[,c(2,7)])
+Humidity <- rbind(Climate_2006[,c(2,8)], Climate_2007[,c(2,8)], Climate_2008[,c(2,8)], Climate_2009[,c(2,8)], Climate_2010[,c(2,8)])
+Wind_Dir <- rbind(Climate_2006[,c(2,9)], Climate_2007[,c(2,9)], Climate_2008[,c(2,9)], Climate_2009[,c(2,9)], Climate_2010[,c(2,9)])
+Wind_Speed <- rbind(Climate_2006[,c(2,10)], Climate_2007[,c(2,10)], Climate_2008[,c(2,10)], Climate_2009[,c(2,10)], Climate_2010[,c(2,10)])
+
+statsNA(Temperature$Temp)
+statsNA(Humidity$Humidity)
+statsNA(Wind_Dir$Wind.Dir)
+statsNA(Wind_Speed$Wind.Spd)
+
+#Plotting NAs (missing data)
+plotNA.gapsize(Temperature$Temp)
+plotNA.gapsize(Humidity$Humidity)
+plotNA.gapsize(Wind_Dir$Wind.Dir)
+plotNA.gapsize(Wind_Speed$Wind.Spd)
+```
+
+The large pieces of missing data are now resolved and replaced with correct data.
+
+## NA Imputation for missing data
+Imputing temperature, humidity and wind speed using the linear interpolation is expressed here. However, for wind direction, a direction of NA means that there has been no wind or the measurement device has failed. The direction (true or geographic, not magnetic) from which the wind blows. It represents the average direction during the two minute period ending at the time of observation. Expressed in tens of degrees (10's deg), 9 means 90 degrees true or an east wind, and 36 means 360 degrees true or a wind blowing from the geographic north pole. A value of zero (0) denotes a calm wind. Therefore, any wind speed 0 can be also interpreted as wind direction of calm and 0. 
+```{r}
+Im_Temp <- na_interpolation(Temperature, option = "linear")
+Im_Humidity <- na_interpolation(Humidity, option = "linear")
+Im_WindSpd <- na_interpolation(Wind_Speed, option = "linear")
+
+# Investigating the Wind Direction by summarizing it
+t <- Wind_Dir %>%
+  group_by(Wind_Dir$Wind.Dir) %>%
+  summarise(counts = n())
+
+# I assume every wind speed 0 also mean wind direction 0 and impute
+rowswithZero <- which(grepl("^0", Wind_Speed$Wind.Spd))
+Im_WindDir <- Wind_Dir
+Im_WindDir[rowswithZero,2] <- 0
+
+#the remaining 52 rows of NA can be imputed by interpolation with assumption that there has been a device malfunction
+Im_WindDir <- na_interpolation(Im_WindDir, option = "linear")
+```
+Exporting techically correct data into csv files for future reference.
+
+```{r}
+write.csv(Im_Temp, '/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Temp.csv')
+write.csv(Im_Humidity, '/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Humidity.csv')
+write.csv(Im_WindSpd, '/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_WindSpd.csv')
+write.csv(Im_WindDir, '/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Windir.csv')
+```

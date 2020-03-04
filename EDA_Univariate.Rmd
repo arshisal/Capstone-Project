@@ -1,0 +1,91 @@
+---
+title: "Exploratory Data Analysis"
+author: "Saloomeh (Sally) Arshi"
+date: "Sys.Date()"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+```{r, echo=FALSE, message=FALSE}
+rm(list = ls())
+
+# Loading libraries
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(imputeTS)
+library(forecast)
+```
+Loading Data
+```{r}
+# Read Files
+CO <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_CO.csv', stringsAsFactors = FALSE, header = TRUE)
+NO <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NO.csv', stringsAsFactors = FALSE, header = TRUE)
+NO2 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NO2.csv', stringsAsFactors = FALSE, header = TRUE)
+NOX <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NOX.csv', stringsAsFactors = FALSE, header = TRUE)
+O3 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_O3.csv', stringsAsFactors = FALSE, header = TRUE)
+PM25 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_PM25.csv', stringsAsFactors = FALSE, header = TRUE)
+Temp <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Temp.csv', stringsAsFactors = FALSE, header = TRUE)
+Humidity <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Humidity.csv', stringsAsFactors = FALSE, header = TRUE)
+Wind_Dir <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Windir.csv', stringsAsFactors = FALSE, header = TRUE)
+Wind_Spd <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_WindSpd.csv', stringsAsFactors = FALSE, header = TRUE)
+```
+
+Building Time Series from data
+```{r}
+TS_CO <- msts(CO$x, seasonal.periods = 8766, start= 2006)
+TS_NO <- msts(NO$x, seasonal.periods = 8766, start= 2006)
+TS_NO2 <- msts(NO2$x, seasonal.periods = 8766, start= 2006)
+TS_NOX <- msts(NOX$x, seasonal.periods = 8766, start= 2006)
+TS_O3 <- msts(O3$x, seasonal.periods = 8766, start= 2006)
+TS_PM25 <- msts(PM25$x, seasonal.periods = 8766, start= 2006)
+TS_Temp <- msts(Temp$Temp, seasonal.periods = 8766, start= 2006)
+TS_Humid <- msts(Humidity$Humidity, seasonal.periods = 8766, start= 2006)
+TS_Winddir <- msts(Wind_Dir$Wind.Dir, seasonal.periods = 8766, start= 2006)
+TS_Windspd <- msts(Wind_Spd$Wind.Spd, seasonal.periods = 8766, start= 2006)
+```
+## Decomposition of Time Series
+decompose a time series into seasonal, trend and irregular components using moving average.
+```{r}
+dec_CO <- decompose(TS_CO)
+dec_NO <- decompose(TS_NO)
+dec_NO2 <- decompose(TS_NO2)
+dec_NOX <- decompose(TS_NOX)
+dec_O3 <- decompose(TS_O3)
+dec_PM25 <- decompose(TS_PM25)
+dec_Temp <- decompose(TS_Temp)
+dec_Humid <- decompose(TS_Humid)
+dec_Winddir <- decompose(TS_Winddir)
+dec_Windspd <- decompose(TS_Windspd)
+
+plot(dec_CO)
+plot(dec_NO)
+plot(dec_NO2)
+plot(dec_NOX)
+```
+```{r}
+corr1 <- ccf(TS_CO, TS_Temp)
+corr2 <- ccf(TS_CO, TS_Humid)
+corr3 <- ccf(TS_CO, TS_Winddir)
+corr4 <- ccf(TS_CO, TS_Windspd)
+
+plot(corr1)
+plot(corr2)
+plot(corr3)
+plot(corr4)
+```
+
+
+```{r}
+acf_CO <- acf(TS_CO)
+acf_NO <- acf(TS_NO)
+acf_NO2 <- acf(TS_NO2)
+acf_NOX <- acf(TS_NOX)
+
+plot(acf_CO)
+plot(acf_NO)
+plot(acf_NO2)
+plot(acf_NOX)
+```

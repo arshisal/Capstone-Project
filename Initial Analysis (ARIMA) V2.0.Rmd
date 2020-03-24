@@ -1,0 +1,291 @@
+---
+title: "Initial Analysis"
+author: "Saloomeh (Sally) Arshi"
+date: "06/03/2020"
+output:
+  pdf_document
+---
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Loading libraries
+rm(list = ls())
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(imputeTS)
+library(forecast)
+library(TSstudio)
+```
+
+This section is dedicated to ARIMA modeling and forecast for univariate pollutant data. 
+
+Please note that due to CPU limitation I limited the data to only year 2009 and 2010. 
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Read Files
+TCD_CO <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_CO.csv', 
+               stringsAsFactors = FALSE, header = TRUE)
+TCD_NO <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NO.csv', 
+               stringsAsFactors = FALSE, header = TRUE)
+TCD_NO2 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NO2.csv', 
+                stringsAsFactors = FALSE, header = TRUE)
+TCD_NOX <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NOX.csv', 
+                stringsAsFactors = FALSE, header = TRUE)
+TCD_O3 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_O3.csv', 
+               stringsAsFactors = FALSE, header = TRUE)
+TCD_PM25 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_PM25.csv', 
+                 stringsAsFactors = FALSE, header = TRUE)
+TCD_Temp <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Temp.csv', 
+                 stringsAsFactors = FALSE, header = TRUE)
+TCD_Humid <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Humidity.csv', 
+                     stringsAsFactors = FALSE, header = TRUE)
+TCD_Wdir <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Windir.csv', 
+                     stringsAsFactors = FALSE, header = TRUE)
+TCD_Wspd <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_WindSpd.csv', 
+                     stringsAsFactors = FALSE, header = TRUE)
+
+TS_CO <- msts(TCD_CO$x, seasonal.periods = 8766, start= 2006)
+TS_NO <- msts(TCD_NO$x, seasonal.periods = 8766, start= 2006)
+TS_NO2 <- msts(TCD_NO2$x, seasonal.periods = 8766, start= 2006)
+TS_NOX <- msts(TCD_NOX$x, seasonal.periods = 8766, start= 2006)
+TS_O3 <- msts(TCD_O3$x, seasonal.periods = 8766, start= 2006)
+TS_PM25 <- msts(TCD_PM25$x, seasonal.periods = 8766, start= 2006)
+TS_Temp <- msts(TCD_Temp$Temp, seasonal.periods = 8766, start= 2006)
+TS_Humid <- msts(TCD_Humid$Humidity, seasonal.periods = 8766, start= 2006)
+TS_Winddir <- msts(TCD_Wdir$Wind.Dir, seasonal.periods = 8766, start= 2006)
+TS_Windspd <- msts(TCD_Wspd$Wind.Spd, seasonal.periods = 8766, start= 2006)
+
+TSW_CO <- window(TS_CO, start=c(2009, 1), end=c(2010, 8766))
+TSW_NO <- window(TS_NO, start=c(2009, 1), end=c(2010, 8766))
+TSW_NO2 <- window(TS_NO2, start=c(2009, 1), end=c(2010, 8766))
+TSW_NOX <- window(TS_NOX, start=c(2009, 1), end=c(2010, 8766))
+TSW_O3 <- window(TS_O3, start=c(2009, 1), end=c(2010, 8766))
+TSW_PM25 <- window(TS_PM25, start=c(2009, 1), end=c(2010, 8766))
+```
+
+# Naive prediction baseline 
+
+The naive prediction baseline (“choose the last observed value as the prediction for the next point”) is a widely usedbaseline in forecasting methods. The intuition behind using this baseline is,that regardless of the accuracy of a given predictor it should always perform better than the naive prediction. In this analysis the MAE applied to the naive predictor (sum of the difference between step i and step i-1 devided by n-1) is considered for comparision between forecasted MAEs and the baseline MAE.Below is the list of all pollutants and their baseline predictions:
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# CO
+m_test <- cbind(lag(TCD_CO$x), TCD_CO$x)
+colnames(m_test) <- c('t-1', 't')
+m_test <- as.data.frame(m_test)
+m_test$dif <- (m_test$t - m_test$`t-1`)
+m_test$abs <- abs(m_test$dif)
+MAE_baseline <- sum(m_test$abs, na.rm = TRUE)/(nrow(TCD_CO) -1)
+cat("MAE Baseline for CO:", MAE_baseline, "\n")
+
+# NO
+n_test <- cbind(lag(TCD_NO$x), TCD_NO$x)
+colnames(n_test) <- c('t-1', 't')
+n_test <- as.data.frame(n_test)
+n_test$dif <- (n_test$t - n_test$`t-1`)
+n_test$abs <- abs(n_test$dif)
+MAE_baselineNO <- sum(n_test$abs, na.rm = TRUE)/(nrow(TCD_NO) -1)
+cat("MAE Baseline for NO:", MAE_baselineNO, "\n")
+
+# NO2
+n2_test <- cbind(lag(TCD_NO2$x), TCD_NO2$x)
+colnames(n2_test) <- c('t-1', 't')
+n2_test <- as.data.frame(n2_test)
+n2_test$dif <- (n2_test$t - n2_test$`t-1`)
+n2_test$abs <- abs(n2_test$dif)
+MAE_baselineNO2 <- sum(n2_test$abs, na.rm = TRUE)/(nrow(TCD_NO2) -1)
+cat("MAE Baseline for NO2:", MAE_baselineNO2, "\n")
+
+# NOX
+nx_test <- cbind(lag(TCD_NOX$x), TCD_NOX$x)
+colnames(nx_test) <- c('t-1', 't')
+nx_test <- as.data.frame(nx_test)
+nx_test$dif <- (nx_test$t - nx_test$`t-1`)
+nx_test$abs <- abs(nx_test$dif)
+MAE_baselineNOX <- sum(nx_test$abs, na.rm = TRUE)/(nrow(TCD_NOX) -1)
+cat("MAE Baseline for NOX:", MAE_baselineNOX, "\n")
+
+# O3
+o_test <- cbind(lag(TCD_O3$x), TCD_O3$x)
+colnames(o_test) <- c('t-1', 't')
+o_test <- as.data.frame(o_test)
+o_test$dif <- (o_test$t - o_test$`t-1`)
+o_test$abs <- abs(o_test$dif)
+MAE_baselineO3 <- sum(o_test$abs, na.rm = TRUE)/(nrow(TCD_O3) -1)
+cat("MAE Baseline for O3:", MAE_baselineO3, "\n")
+
+# PM25
+p_test <- cbind(lag(TCD_PM25$x), TCD_PM25$x)
+colnames(p_test) <- c('t-1', 't')
+p_test <- as.data.frame(p_test)
+p_test$dif <- (p_test$t - p_test$`t-1`)
+p_test$abs <- abs(p_test$dif)
+MAE_baselinePM <- sum(p_test$abs, na.rm = TRUE)/(nrow(TCD_PM25) -1)
+cat("MAE Baseline for PM2.5:", MAE_baselinePM, "\n")
+```
+# Training and Test Data
+
+TSstudio package provides a function for time series data splitting. I kept the first 12 months of data (2009) as training and the last 12 months of data as test as test data for all pollutants. This was done due to CPU limitations. After first attempt at modeling for 4 years of data as training set and last year as test, it became evident that the CPU won't be able to address such load of data.
+
+Below is the view of of training data for CO demonstrated as an exmaple:
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+train_CO <- window(TSW_CO, start=c(2009, 1), end=c(2009, 8760))
+test_CO <- window(TSW_CO, start=c(2010, 1), end=c(2010, 8760))
+cat("Training Set View (head) for CO (as an example) \n")
+head(train_CO)
+cat("Training Set View (tail) for CO (as an example) \n")
+tail(train_CO)
+
+train_NO <- window(TSW_NO, start=c(2009, 1), end=c(2009, 8760))
+test_NO <- window(TSW_NO, start=c(2010, 1), end=c(2010, 8760))
+
+train_NO2 <- window(TSW_NO2, start=c(2009, 1), end=c(2009, 8760))
+test_NO2 <- window(TSW_NO2, start=c(2010, 1), end=c(2010, 8760))
+
+train_NOX <- window(TSW_NOX, start=c(2009, 1), end=c(2009, 8760))
+test_NOX <- window(TSW_NOX, start=c(2010, 1), end=c(2010, 8760))
+
+train_O3 <- window(TSW_O3, start=c(2009, 1), end=c(2009, 8760))
+test_O3 <- window(TSW_O3, start=c(2010, 1), end=c(2010, 8760))
+
+train_PM25 <- window(TSW_PM25, start=c(2009, 1), end=c(2009, 8760))
+test_PM25 <- window(TSW_PM25, start=c(2010, 1), end=c(2010, 8760))
+```
+
+# ARIMA Model
+
+In order to find the best ARIMA model, I first use the auto.arima (auto.rima function in Forecast package in R) on train data to estimate the candidate ARIMA model for the time series. I then plot the residuals and acf residuals and residual histogram for fitted model using the checkresidual function. After running the auto arima model, I used the fitted model to forecast for the period of 1 year and compared with the test data (gold color in the plot).
+
+## Redisual Plots
+When the residual distribution (histogram) indicates a normal distribution with no unusual spikes and the residuals look more like white noise, the fitted model is a good estimation.
+
+Note: the blue area in forecast graphs are the prediction intervals.
+
+### Fitted ARIMA Model for CO
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_CO <- auto.arima(train_CO, stepwise = FALSE, approximation = FALSE)
+#cat("Summary results from Auto Arima for CO\n")
+summary(fit_CO)
+checkresiduals(fit_CO)
+
+fitArima_CO <- Arima(train_CO, order=c(4,1,1))
+
+  fitArima_CO %>%
+    forecast(h=8760) %>%
+    autoplot() + 
+    autolayer(test_CO, colour = TRUE, series = 'Test Data') +
+    ylab("Pollutant CO") + 
+    guides(colour=guide_legend(title = "Data Series"), fill=guide_legend(title = "Prediction Interval")) +
+    scale_color_manual(values=c("gold"))
+  
+cat("Accuracy Info from Forecast:\n")
+accuracy(fitArima_CO)
+#add the legend to graph
+```
+
+### Fitted ARIMA Model for NO
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_NO <- auto.arima(train_NO, stepwise = FALSE, approximation = FALSE)
+#cat("Summary results from Auto Arima for NO\n")
+summary(fit_NO)
+checkresiduals(fit_NO)
+
+fitArima_NO <- Arima(train_NO, order=c(0,1,5))
+
+  fitArima_NO %>%
+    forecast(h=8760) %>%
+    autoplot() + 
+    autolayer(test_NO, colour = TRUE, series = 'Test Data') +
+    ylab("Pollutant NO") + 
+    guides(colour=guide_legend(title = "Data Series"), fill=guide_legend(title = "Prediction Interval")) +
+    scale_color_manual(values=c("gold"))
+  
+cat("Accuracy Info from Forecast:\n")
+accuracy(fitArima_NO)
+```
+
+### Fitted ARIMA Model for NO2
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_NO2 <- auto.arima(train_NO2, stepwise = FALSE, approximation = FALSE)
+#cat("Summary results from Auto Arima for NO\n")
+summary(fit_NO2)
+checkresiduals(fit_NO2)
+
+fitArima_NO2 <- Arima(train_NO2, order=c(2,1,5))
+
+  fitArima_NO2 %>%
+    forecast(h=8760) %>%
+    autoplot() + 
+    autolayer(test_NO2, colour = TRUE, series = 'Test Data') +
+    ylab("Pollutant NO2") + 
+    guides(colour=guide_legend(title = "Data Series"), fill=guide_legend(title = "Prediction Interval")) +
+    scale_color_manual(values=c("gold"))
+  
+cat("Accuracy Info from Forecast:\n")
+accuracy(fitArima_NO2)
+```
+
+### Fitted ARIMA Model for NOX
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_NOX <- auto.arima(train_NOX, stepwise = FALSE, approximation = FALSE)
+#cat("Summary results from Auto Arima for NO\n")
+summary(fit_NOX)
+checkresiduals(fit_NOX)
+
+fitArima_NOX <- Arima(train_NOX, order=c(0,1,5))
+
+  fitArima_NOX %>%
+    forecast(h=8760) %>%
+    autoplot() + 
+    autolayer(test_NOX, colour = TRUE, series = 'Test Data') +
+    ylab("Pollutant NOX") + 
+    guides(colour=guide_legend(title = "Data Series"), fill=guide_legend(title = "Prediction Interval")) +
+    scale_color_manual(values=c("gold"))
+  
+cat("Accuracy Info from Forecast:\n")
+accuracy(fitArima_NOX)
+```
+
+### Fitted ARIMA Model for O3
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_O3 <- auto.arima(train_O3, stepwise = FALSE, approximation = FALSE)
+#cat("Summary results from Auto Arima for NO\n")
+summary(fit_O3)
+checkresiduals(fit_O3)
+
+fitArima_O3 <- Arima(train_O3, order=c(5,1,1))
+
+  fitArima_O3 %>%
+    forecast(h=8760) %>%
+    autoplot() + 
+    autolayer(test_O3, colour = TRUE, series = 'Test Data') +
+    ylab("Pollutant O3") + 
+    guides(colour=guide_legend(title = "Data Series"), fill=guide_legend(title = "Prediction Interval")) +
+    scale_color_manual(values=c("gold"))
+  
+cat("Accuracy Info from Forecast:\n")
+accuracy(fitArima_O3)
+```
+
+### Fitted ARIMA Model for PM2.5
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_PM25 <- auto.arima(train_PM25, stepwise = FALSE, approximation = FALSE)
+#cat("Summary results from Auto Arima for NO\n")
+summary(fit_PM25)
+checkresiduals(fit_PM25)
+
+fitArima_PM25 <- Arima(train_PM25, order=c(5,1,1))
+
+  fitArima_PM25 %>%
+    forecast(h=8760) %>%
+    autoplot() + 
+    autolayer(test_PM25, colour = TRUE, series = 'Test Data') +
+    ylab("Pollutant PM2.5") + 
+    guides(colour=guide_legend(title = "Data Series"), fill=guide_legend(title = "Prediction Interval")) +
+    scale_color_manual(values=c("gold"))
+  
+cat("Accuracy Info from Forecast:\n")
+accuracy(fitArima_PM25)
+```

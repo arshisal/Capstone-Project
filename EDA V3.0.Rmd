@@ -1,0 +1,295 @@
+---
+title: "Exploratory Data Analysis for Time Series"
+author: "Saloomeh (Sally) Arshi"
+date: "04/03/2020"
+output: pdf_document
+---
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+rm(list = ls())
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(imputeTS)
+library(forecast)
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Read Files
+CO <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_CO.csv', 
+               stringsAsFactors = FALSE, header = TRUE)
+NO <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NO.csv', 
+               stringsAsFactors = FALSE, header = TRUE)
+NO2 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NO2.csv', 
+                stringsAsFactors = FALSE, header = TRUE)
+NOX <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NOX.csv', 
+                stringsAsFactors = FALSE, header = TRUE)
+O3 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_O3.csv', 
+               stringsAsFactors = FALSE, header = TRUE)
+PM25 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_PM25.csv', 
+                 stringsAsFactors = FALSE, header = TRUE)
+Temp <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Temp.csv', 
+                 stringsAsFactors = FALSE, header = TRUE)
+Humidity <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Humidity.csv', 
+                     stringsAsFactors = FALSE, header = TRUE)
+Wind_Dir <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Windir.csv', 
+                     stringsAsFactors = FALSE, header = TRUE)
+Wind_Spd <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_WindSpd.csv', 
+                     stringsAsFactors = FALSE, header = TRUE)
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Storing Data into Time Series Class
+TS_CO <- msts(CO$x, seasonal.periods = 8766, start= 2006)
+TS_NO <- msts(NO$x, seasonal.periods = 8766, start= 2006)
+TS_NO2 <- msts(NO2$x, seasonal.periods = 8766, start= 2006)
+TS_NOX <- msts(NOX$x, seasonal.periods = 8766, start= 2006)
+TS_O3 <- msts(O3$x, seasonal.periods = 8766, start= 2006)
+TS_PM25 <- msts(PM25$x, seasonal.periods = 8766, start= 2006)
+TS_Temp <- msts(Temp$Temp, seasonal.periods = 8766, start= 2006)
+TS_Humid <- msts(Humidity$Humidity, seasonal.periods = 8766, start= 2006)
+TS_Winddir <- msts(Wind_Dir$Wind.Dir, seasonal.periods = 8766, start= 2006)
+TS_Windspd <- msts(Wind_Spd$Wind.Spd, seasonal.periods = 8766, start= 2006)
+
+test <- cbind(Temp$Full.Date, CO$x, NO$x, NO2$x, NOX$x, O3$x, PM25$x)
+colnames(test) <- c("Date", "CO", "NO", "NO2", "NOX", "O3", "PM2.5")
+Pollutants <- as.data.frame(test)
+```
+## Plotting Time Series
+
+In this section all time series are plotted for visualization of data. There are 6 pollutant variables and 4 dependant variables from atmospheric measurements.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Pollutants
+par(mfrow = c(1,1))
+par(mfrow = c(2,1), mar = c(2,2,2,2))
+plot.ts(TS_CO, col = "red", main = "CO Over Time", xlab = "Year", ylab = "CO")
+plot.ts(TS_NO, col = "skyblue", main = "NO Over Time", xlab = "Year", ylab = "NO")
+plot.ts(TS_NO2, col = "orange", main = "NO2 Over Time", xlab = "Year", ylab = "NO2")
+plot.ts(TS_NOX, col = "green", main = "NOX Over Time", xlab = "Year", ylab = "NOX")
+plot.ts(TS_O3, col = "purple",  main = "O3 (Ozone) Over Time", xlab = "Year", ylab = "O3")
+plot.ts(TS_PM25, col = "hotpink", main = "Micro Particles (2.5) Over Time", xlab = "Year", ylab = "PM2.5")
+#ggseasonplot(TS_CO, year.labels = TRUE, year.labels.left = TRUE) seasonality of data
+#mtext(side = 3, line = 1, cex = 1.2)
+
+# Atmospheric Variables
+par(mfrow = c(1,1), mar = c(2,2,2,2))
+plot.ts(TS_Temp, col = "orchid", main = "Temprature Measurements Over Time", xlab = "Year", ylab = "Temp")
+plot.ts(TS_Humid, col = "orangered", main = "Humidity Over Time", xlab = "Year", ylab = "Humidity")
+plot.ts(TS_Winddir, col = "royalblue", main = "Wind Direction Over Time", xlab = "Year", ylab = "Wind Dir")
+plot.ts(TS_Windspd, col = "purple", main = "Wind Speed Over Time", xlab = "Year", ylab = "Wind Spd")
+```
+
+NOTE: Wind direction is measured in degrees and measurements are devided by 10. Maximum wind direction is 36 which equate 360 degrees (indicating the wind is from north)
+
+There are some visible outliers in NO, NOX data.* This will be explored next. 
+
+## Decomposition of Time Series
+Decompose a time series into seasonal, trend and irregular components using moving average.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Function for decompose plot
+my_plot.decomposed.ts = function(x, title="", ...) {
+  xx <- x$x
+  if (is.null(xx)) 
+    xx <- with(x, if (type == "additive") 
+      random + trend + seasonal
+      else random * trend * seasonal)
+  plot(cbind(observed = xx, trend = x$trend, seasonal = x$seasonal, random = x$random), 
+       main=title, ...)
+}
+
+dec_CO <- decompose(TS_CO)
+dec_NO <- decompose(TS_NO)
+dec_NO2 <- decompose(TS_NO2)
+dec_NOX <- decompose(TS_NOX)
+dec_O3 <- decompose(TS_O3)
+dec_PM25 <- decompose(TS_PM25)
+#dec_Temp <- decompose(TS_Temp)
+#dec_Humid <- decompose(TS_Humid)
+#dec_Winddir <- decompose(TS_Winddir)
+#dec_Windspd <- decompose(TS_Windspd)
+
+my_plot.decomposed.ts(dec_CO, "Decomposition of CO", col = "red")
+my_plot.decomposed.ts(dec_NO, "Decomposition of NO", col = "skyblue")
+my_plot.decomposed.ts(dec_NO2, "Decomposition of NO2", col = "orange")
+my_plot.decomposed.ts(dec_NOX, "Decomposition of NOX", col = "green")
+my_plot.decomposed.ts(dec_O3, "Decomposition of O3", col = "purple")
+my_plot.decomposed.ts(dec_PM25, "Decomposition of PM2.5", col = "hotpink")
+```
+
+The following information can be seen from the decomposition plots of pollutants:
+
+All variable have a trend which is not constant (meaning that on average the values tend to increase or decrease over time). As a result the pollutant varibales are not stationary. In the case of CO the trend shows a gradual decline in trend of CO over time. However, as of some time late 2008, the levels of CO starts increasing. This can be attributed to declining traffic and office activities in downtown Toronto due to the big financial crash of 2008. 
+
+All three nitrogen oxides (NO, NO2, NOX) demonstrate a declining trend over time. This trend can be attributed to the changing policies over time and reduction of coal fueled electricity productions. Ozon (measured at ground level) trends demonstrate a drastic increase and some lowering and more increase. This trend is troublesome as ozone traps the sun's ultraviolate energy and increases the temperature. PM2.5 demonstrates a decline since middle of 2007 which can be attributed to changes in policies about coal power generators as well.
+
+Since trend and seasonality (regular patterns of high and low) are visible in all pollutants, they are not stationary time series. 
+
+## Measure of Dependence Auto Correlation and Cross Correlation
+
+ACF (autocorrelation function) measures the linear predictability of the time series. The cross-covariance function between two time series is measure correlation between values at different times. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+par(oma=c(0,0,2,0))
+acf_CO <- acf(TS_CO, main ='ACF for CO', cex=1)
+acf_NO <- acf(TS_NO, main ='ACF for NO', cex=1)
+acf_NO2 <- acf(TS_NO2, main ='ACF for NO2', cex=1)
+acf_NOX <- acf(TS_NOX, main ='ACF for NOX', cex=1)
+acf_O3 <- acf(TS_O3, main ='ACF for O3', cex=1)
+acf_PM25 <- acf(TS_PM25, main ='ACF for PM2.5', cex=1)
+```
+
+Above graphs indicate that each observation is positively associated with its recent past but association becomes weaker as the time increases. In all of the above graphs similar trends and seasonality as observed in the decomposition graphs are visible. Therefore, I first remove the seasonality to adjust for that and then check ACF (auto-correlation among data). ACF is defined as the correlation between the pair of values separated by the legnth of lag.
+
+When running ACF if no lag.max parameter was selected automatically first. After a number of trials and considering the fact that seasonality or repeat is observed in the data, various lags were selected. For example the CO a lag of 365 days (annually) was observed; therefore, I decided to change the lag.max to 24x365 which is equivalent to 1 year worth of hourly data. That way, the ACF result also confirms the lag. For NO, NO2, NOX and O3 the lag selected is 24 hours and for PM2.5 the lag selected is 24x7 (which is one week).
+
+```{r, , echo=FALSE, message=FALSE, warning=FALSE}
+seAdj_CO <- TS_CO - dec_CO$seasonal
+seAdj_NO <- TS_NO - dec_NO$seasonal
+seAdj_NO2 <- TS_NO2 - dec_NO2$seasonal
+seAdj_NOX <- TS_NOX - dec_NOX$seasonal
+seAdj_O3 <- TS_O3 - dec_O3$seasonal
+seAdj_PM25 <- TS_PM25 - dec_PM25$seasonal
+
+# Check autocorrelation again
+par(oma=c(0,0,2,0))
+acf1_CO <- acf(seAdj_CO, lag.max = 24*365, main='ACF - Seasonaly Adj. CO')
+acf1_NO <- acf(seAdj_NO, lag.max = 24, main='ACF - Seasonaly Adj. NO')
+acf1_NO2 <- acf(seAdj_NO2, lag.max = 24, main='ACF - Seasonaly Adj. NO2')
+acf1_NOX <- acf(seAdj_NOX, lag.max = 24, main='ACF - Seasonaly Adj. NOX')
+acf1_O3 <- acf(seAdj_O3, lag.max = 24, main='ACF - Seasonaly Adj. O3')
+acf1_PM25 <- acf(seAdj_PM25, lag.max = 24*7, main='ACF - Seasonaly Adj. PM2.5')
+```
+
+Since the association among data points is very strong. Therefore, next step is to remove trends from the time series. In order to remove trends, I used diff() function. First I will try the difference=1 which will remove linear trend and re-do the acf test. Differencing can help stabilise the mean of a time series.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+adjusted_CO <- diff(seAdj_CO, differences = 1)
+adjusted_NO <- diff(seAdj_NO, differences = 1)
+adjusted_NO2 <- diff(seAdj_NO2, differences = 1)
+adjusted_NOX <- diff(seAdj_NOX, differences = 1)
+adjusted_O3 <- diff(seAdj_O3, differences = 1)
+adjusted_PM25 <- diff(seAdj_PM25, differences = 1)
+
+par(mfrow= c(1,2))
+plot(adjusted_CO, col = "red", main = "Adjusted CO - Diff 1", xlab = "Year", ylab = "CO")
+plot(adjusted_NO, col = "skyblue", main = "Adjusted No - Diff 1", xlab = "Year", ylab = "NO")
+plot(adjusted_NO2, col = "orange", main = "Adjusted NO2 - Diff 1", xlab = "Year", ylab = "NO2")
+plot(adjusted_NOX, col = "green", main = "Adjusted NOX - Diff 1", xlab = "Year", ylab = "NOX")
+plot(adjusted_O3, col = "purple",  main = "Adjusted O3 (Ozone)- Diff 1", xlab = "Year", ylab = "O3")
+plot(adjusted_PM25, col = "hotpink", main = "Adjusted Micro Particles (2.5) - Diff 1", xlab = "Year", ylab = "PM2.5")
+```
+
+The above indicates that all of the pollutants linear trends is now removed. There is also seasonality observed again after diff 1. Repeating the exercise by differencing 12 months (diffrence =12) we should be getting to stationary data.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+adjusted12_CO <- diff(seAdj_CO, differences = 12)
+adjusted12_NO <- diff(seAdj_NO, differences = 12)
+adjusted12_NO2 <- diff(seAdj_NO2, differences = 12)
+adjusted12_NOX <- diff(seAdj_NOX, differences = 12)
+adjusted12_O3 <- diff(seAdj_O3, differences = 12)
+adjusted12_PM25 <- diff(seAdj_PM25, differences = 12)
+
+par(mfrow= c(2,1))
+plot(adjusted12_CO, col = "red", main = "Adjusted CO - Diff 12", xlab = "Year", ylab = "CO")
+plot(adjusted12_NO, col = "skyblue", main = "Adjusted No - Diff 12", xlab = "Year", ylab = "NO")
+plot(adjusted12_NO2, col = "orange", main = "Adjusted NO2 - Diff 12", xlab = "Year", ylab = "NO2")
+plot(adjusted12_NOX, col = "green", main = "Adjusted NOX - Diff 12", xlab = "Year", ylab = "NOX")
+plot(adjusted12_O3, col = "purple",  main = "Adjusted O3 (Ozone)- Diff 12", xlab = "Year", ylab = "O3")
+plot(adjusted12_PM25, col = "hotpink", main = "Adjusted Micro Particles (2.5) - Diff 12", xlab = "Year", ylab = "PM2.5")
+
+```
+
+Now the time series appears to be random error without any obvious trend or seasonal components.
+
+## Checking ACF and PACF for adjusted data
+
+Below graphs are preparations for ARIMA model by checking both ACF and PACF for adjusted data.The number of non-zero partial autocorrelations gives the order of the AR in ARIMA model.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+par(mfrow= c(1,2), oma = c(0,0,2,0))
+acf(adjusted12_CO, main= '')
+pacf(adjusted12_CO, main= '')
+mtext("ACF and PACF for CO", outer = TRUE, cex = 1)
+par(mfrow= c(1,2), oma = c(0,0,2,0))
+acf(adjusted12_NO, main= '')
+pacf(adjusted12_NO, main= '')
+mtext("ACF and PACF for NO", outer = TRUE, cex = 1)
+par(mfrow= c(1,2), oma = c(0,0,2,0))
+acf(adjusted12_NO2, main= '')
+pacf(adjusted12_NO2, main= '')
+mtext("ACF and PACF for NO2", outer = TRUE, cex = 1)
+par(mfrow= c(1,2), oma = c(0,0,2,0))
+acf(adjusted12_NOX, main= '')
+pacf(adjusted12_NOX, main= '')
+mtext("ACF and PACF for NOX", outer = TRUE, cex = 1)
+par(mfrow= c(1,2), oma = c(0,0,2,0))
+acf(adjusted12_O3, main= '')
+pacf(adjusted12_O3, main= '')
+mtext("ACF and PACF for O3", outer = TRUE, cex = 1)
+par(mfrow= c(1,2), oma = c(0,0,2,0))
+acf(adjusted12_PM25, main= '')
+pacf(adjusted12_PM25, main= '')
+mtext("ACF and PACF for PM2.5", outer = TRUE, cex = 1)
+```
+
+# Multui-Variate Correlation
+
+In order to check the correlation between variables of atmospheric measurements and pollutants, I used ccf (cross correlation function) which assesses between two time series whether the past lags are correlated and therefore, useful for predictions. The cross correlation is tested on unadjusted data. Similar to the ACF, since the data is seasonal, oscillation in the ccf is visible too. When the two variable are in phase the values are positive and large, and when the the two series are out of phase the negative and large values are observed.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# CO with Atmospheric Variables
+par(mfrow= c(2,2), oma = c(0,0,2,0))
+corr1_CO <- ccf(TS_CO, TS_Temp, main = 'CO vs Temp')
+corr2_CO <- ccf(TS_CO, TS_Humid, main = 'CO vs Humidity')
+corr3_CO <- ccf(TS_CO, TS_Winddir, main = 'CO vs Wind Dir')
+corr4_CO <- ccf(TS_CO, TS_Windspd, main = 'CO vs Wind Speed')
+mtext("Cross Correlations for CO", outer = TRUE, cex = 1)
+
+# NO with Atmospheric Variables
+par(mfrow= c(2,2), oma = c(0,0,2,0))
+corr1_NO <- ccf(TS_CO, TS_Temp, main = 'NO vs Temp')
+corr2_NO <- ccf(TS_CO, TS_Humid, main = 'NO vs Humidity')
+corr3_NO <- ccf(TS_CO, TS_Winddir, main = 'NO vs Wind Dir')
+corr4_NO <- ccf(TS_CO, TS_Windspd, main = 'NO vs Wind Speed')
+mtext("Cross Correlations for NO", outer = TRUE, cex = 1)
+
+# NO2 with Atmospheric Variables
+par(mfrow= c(2,2), oma = c(0,0,2,0))
+corr1_NO2 <- ccf(TS_CO, TS_Temp, main = 'NO2 vs Temp')
+corr2_NO2 <- ccf(TS_CO, TS_Humid, main = 'NO2 vs Humidity')
+corr3_NO2 <- ccf(TS_CO, TS_Winddir, main = 'NO2 vs Wind Dir')
+corr4_NO2 <- ccf(TS_CO, TS_Windspd, main = 'NO2 vs Wind Speed')
+mtext("Cross Correlations for NO2", outer = TRUE, cex = 1)
+
+# NOX with Atmospheric Variables
+par(mfrow= c(2,2), oma = c(0,0,2,0))
+corr1_NOX <- ccf(TS_CO, TS_Temp, main = 'NOX vs Temp')
+corr2_NOX <- ccf(TS_CO, TS_Humid, main = 'NOX vs Humidity')
+corr3_NOX <- ccf(TS_CO, TS_Winddir, main = 'NOX vs Wind Dir')
+corr4_NOX <- ccf(TS_CO, TS_Windspd, main = 'NOX vs Wind Speed')
+mtext("Cross Correlations for NOX", outer = TRUE, cex = 1)
+
+# O3 with Atmospheric Variables
+par(mfrow= c(2,2), oma = c(0,0,2,0))
+corr1_O3 <- ccf(TS_O3, TS_Temp, main = 'O3 vs Temp')
+corr2_O3 <- ccf(TS_O3, TS_Humid, main = 'O3 vs Humidity')
+corr3_O3 <- ccf(TS_O3, TS_Winddir, main = 'O3 vs Wind Dir')
+corr4_O3 <- ccf(TS_O3, TS_Windspd, main = 'O3 vs Wind Speed')
+mtext("Cross Correlations for O3", outer = TRUE, cex = 1)
+
+# PM2.5 with Atmospheric Variables
+par(mfrow= c(2,2), oma = c(0,0,2,0))
+corr1_PM25 <- ccf(TS_PM25, TS_Temp, main = 'O3 vs Temp')
+corr2_PM25 <- ccf(TS_PM25, TS_Humid, main = 'O3 vs Humidity')
+corr3_PM25 <- ccf(TS_PM25, TS_Winddir, main = 'O3 vs Wind Dir')
+corr4_PM25 <- ccf(TS_PM25, TS_Windspd, main = 'O3 vs Wind Speed')
+mtext("Cross Correlations for PM2.5", outer = TRUE, cex = 1)
+```
+
+# Outliers
+```{r}
+
+```

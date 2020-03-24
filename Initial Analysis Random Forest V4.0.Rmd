@@ -1,0 +1,355 @@
+---
+title: "Initial Analysis Random Forest"
+author: "Saloomeh (Sally) Arshi"
+date: "08/03/2020"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Loading libraries
+rm(list = ls())
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(imputeTS)
+library(forecast)
+library(TSstudio)
+library(ranger)
+library(caret)
+library(pls)
+library(MARSS)
+```
+# Modeling and Validation
+
+##Random Forest Modeling and Forecasting of Pollutants
+
+This section is the steps to model and forecast pollution data using random forest learning model.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Read Files
+TCD_CO <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_CO.csv', 
+               stringsAsFactors = FALSE, header = TRUE)
+TCD_NO <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NO.csv', 
+               stringsAsFactors = FALSE, header = TRUE)
+TCD_NO2 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NO2.csv', 
+                stringsAsFactors = FALSE, header = TRUE)
+TCD_NOX <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_NOX.csv', 
+                stringsAsFactors = FALSE, header = TRUE)
+TCD_O3 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_O3.csv', 
+               stringsAsFactors = FALSE, header = TRUE)
+TCD_PM25 <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_PM25.csv', 
+                 stringsAsFactors = FALSE, header = TRUE)
+TCD_Temp <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Temp.csv', 
+                 stringsAsFactors = FALSE, header = TRUE)
+TCD_Humid <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Humidity.csv', 
+                     stringsAsFactors = FALSE, header = TRUE)
+TCD_Wdir <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_Windir.csv', 
+                     stringsAsFactors = FALSE, header = TRUE)
+TCD_Wspd <- read.csv('/Users//SallyA/Documents/Capstone CKME/Data Files/TCD_WindSpd.csv', 
+                     stringsAsFactors = FALSE, header = TRUE)
+
+TS_CO <- msts(TCD_CO$x, seasonal.periods = 8766, start= 2006)
+TS_NO <- msts(TCD_NO$x, seasonal.periods = 8766, start= 2006)
+TS_NO2 <- msts(TCD_NO2$x, seasonal.periods = 8766, start= 2006)
+TS_NOX <- msts(TCD_NOX$x, seasonal.periods = 8766, start= 2006)
+TS_O3 <- msts(TCD_O3$x, seasonal.periods = 8766, start= 2006)
+TS_PM25 <- msts(TCD_PM25$x, seasonal.periods = 8766, start= 2006)
+TS_Temp <- msts(TCD_Temp$Temp, seasonal.periods = 8766, start= 2006)
+TS_Humid <- msts(TCD_Humid$Humidity, seasonal.periods = 8766, start= 2006)
+TS_Winddir <- msts(TCD_Wdir$Wind.Dir, seasonal.periods = 8766, start= 2006)
+TS_Windspd <- msts(TCD_Wspd$Wind.Spd, seasonal.periods = 8766, start= 2006)
+
+TSW_CO <- window(TS_CO, start=c(2009, 1), end=c(2010, 8766))
+TSW_NO <- window(TS_NO, start=c(2009, 1), end=c(2010, 8766))
+TSW_NO2 <- window(TS_NO2, start=c(2009, 1), end=c(2010, 8766))
+TSW_NOX <- window(TS_NOX, start=c(2009, 1), end=c(2010, 8766))
+TSW_O3 <- window(TS_O3, start=c(2009, 1), end=c(2010, 8766))
+TSW_PM25 <- window(TS_PM25, start=c(2009, 1), end=c(2010, 8766))
+TSW_Temp <- window(TS_Temp, start=c(2009, 1), end=c(2010, 8766))
+TSW_Humid <- window(TS_Humid, start=c(2009, 1), end=c(2010, 8766))
+TSW_Wdir <- window(TS_Winddir, start=c(2009, 1), end=c(2010, 8766))
+TSW_Wspd <- window(TS_Windspd, start=c(2009, 1), end=c(2010, 8766))
+```
+
+For Random Forest implementation first need to use differencing to build the variables necessary (time delay) for random forest model. Since the random forest model does not have awareness of the time and the univariate time series is essentially a vactor indexed by time, this method is used to turn the vector into a matrix.
+
+After that, using ranger function which is a faster implementation of random forest to fit on training data (year 2009). Afterwards, the test data (year 2010) is used to predict the next year's data. Finally, the predicted and test data are plotted to demonstrate the accuracy of the predictions. 
+```{r}
+# Univariate RF
+# CO
+prep_CO <- TCD_CO %>%
+  mutate(lag1 = lag(x), 
+         lag2 = lag(x, 2L),
+         lag3 = lag(x, 3L),
+         dif1 = lag1 - lag2,
+         dif2 = lag2 - lag3) %>%
+  filter(complete.cases(.))
+
+# NO
+prep_NO <- TCD_NO %>%
+  mutate(lag1 = lag(x), 
+         lag2 = lag(x, 2L),
+         lag3 = lag(x, 3L),
+         dif1 = lag1 - lag2,
+         dif2 = lag2 - lag3) %>%
+  filter(complete.cases(.))
+
+# NO2
+prep_NO2 <- TCD_NO2 %>%
+  mutate(lag1 = lag(x), 
+         lag2 = lag(x, 2L),
+         lag3 = lag(x, 3L),
+         dif1 = lag1 - lag2,
+         dif2 = lag2 - lag3) %>%
+  filter(complete.cases(.))
+
+# NOX
+prep_NOX <- TCD_NOX %>%
+  mutate(lag1 = lag(x), 
+         lag2 = lag(x, 2L),
+         lag3 = lag(x, 3L),
+         dif1 = lag1 - lag2,
+         dif2 = lag2 - lag3) %>%
+  filter(complete.cases(.))
+
+# O3
+prep_O3 <- TCD_O3 %>%
+  mutate(lag1 = lag(x), 
+         lag2 = lag(x, 2L),
+         lag3 = lag(x, 3L),
+         dif1 = lag1 - lag2,
+         dif2 = lag2 - lag3) %>%
+  filter(complete.cases(.))
+
+# PM2.5
+prep_PM25 <- TCD_PM25 %>%
+  mutate(lag1 = lag(x), 
+         lag2 = lag(x, 2L),
+         lag3 = lag(x, 3L),
+         dif1 = lag1 - lag2,
+         dif2 = lag2 - lag3) %>%
+  filter(complete.cases(.))
+
+# Train/Test Split (last year of hourly data selected as test)
+# CO
+test_CO <- prep_CO %>%
+  filter(X > 35064)
+train_CO <- prep_CO %>%
+  filter(X > 26303 & X < 35064)
+
+y <- "x"
+x <- c("lag1", "lag2", "lag3", "dif1", "dif2", "X")
+form <- reformulate(x, y)
+
+# NO
+test_NO <- prep_NO %>%
+  filter(X > 35064)
+train_NO <- prep_NO %>%
+  filter(X > 26303 & X < 35064)
+
+# NO2
+test_NO2 <- prep_NO2 %>%
+  filter(X > 35064)
+train_NO2 <- prep_NO2 %>%
+  filter(X > 26303 & X < 35064)
+
+# NOX
+test_NOX <- prep_NOX %>%
+  filter(X > 35064)
+train_NOX <- prep_NOX %>%
+  filter(X > 26303 & X < 35064)
+
+# O3
+test_O3 <- prep_O3 %>%
+  filter(X > 35064)
+train_O3 <- prep_O3 %>%
+  filter(X > 26303 & X < 35064)
+
+# PM2.5
+test_PM25 <- prep_PM25 %>%
+  filter(X > 35064)
+train_PM25 <- prep_PM25 %>%
+  filter(X > 26303 & X < 35064)
+
+# Setup formula for ranger
+y <- "x"
+x <- c("lag1", "lag2", "lag3", "dif1", "dif2", "X")
+form <- reformulate(x, y)
+
+# Random Forest - Univariate
+# CO
+fit_rfCO <- ranger(form, data = train_CO)
+pred_rfCO <- predict(fit_rfCO, test_CO)
+
+fcast_CO <- forecast(fit_rfCO$predictions)
+accuracy(fcast_CO)
+
+ggplot(test_CO, aes(test_CO$X, test_CO$x)) + geom_line(colour="darkred") + 
+  geom_point(aes(test_CO$X, pred_rfCO$predictions), shape= 1, colour='skyblue') + 
+  labs(title = "Plot of Test (actual) vs Random Forest Prediction for CO") +
+  ylab("CO") + xlab("Hours Passed Since 2005") +
+  theme_minimal()
+
+# NO
+fit_rfNO <- ranger(form, data = train_NO, num.trees = 600, mtry = 3, seed = 100)
+pred_rfNO <- predict(fit_rfNO, test_NO)
+
+fcast_NO <- forecast(fit_rfNO$predictions)
+accuracy(fcast_NO)
+
+ggplot(test_NO, aes(test_NO$X, test_NO$x)) + geom_line(colour="darkred") + 
+  geom_point(aes(test_NO$X, pred_rfNO$predictions), shape= 1, colour='skyblue') + 
+  labs(title = "Plot of Test (actual) vs Random Forest Prediction for NO") +
+  ylab("NO") + xlab("Hour Passed Since 2005") +
+  theme_minimal()
+
+# NO2
+fit_rfNO2 <- ranger(form, data = train_NO2, num.trees = 300, mtry = 1, seed = 100)
+pred_rfNO2 <- predict(fit_rfNO2, test_NO2)
+
+fcast_NO2 <- forecast(fit_rfNO2$predictions)
+accuracy(fcast_NO2)
+
+ggplot(test_NO2, aes(test_NO2$X, test_NO2$x)) + geom_line(colour="darkred") + 
+  geom_point(aes(test_NO2$X, pred_rfNO2$predictions), shape= 1, colour='skyblue') +
+  labs(title = "Plot of Test (actual) vs Random Forest Prediction for NO2") +
+  ylab("NO2") + xlab("Hour Passed Since 2005") +
+  theme_minimal()
+
+# NOX
+fit_rfNOX <- ranger(form, data = train_NOX, num.trees = 300, mtry = 1, seed = 100)
+pred_rfNOX <- predict(fit_rfNOX, test_NOX)
+
+fcast_NOX <- forecast(fit_rfNOX$predictions)
+accuracy(fcast_NOX)
+
+ggplot(test_NOX, aes(test_NOX$X, test_NOX$x)) + geom_line(colour="darkred") + 
+  geom_point(aes(test_NOX$X, pred_rfNOX$predictions), shape= 1, colour='skyblue') +
+  labs(title = "Plot of Test (actual) vs Random Forest Prediction for NOX") + 
+  ylab("NOX") + xlab("Hour Passed Since 2005") +
+  theme_minimal()
+  
+# O3
+fit_rfO3 <- ranger(form, data = train_O3, num.trees = 300, mtry = 1, seed = 100)
+pred_rfO3 <- predict(fit_rfO3, test_O3)
+
+fcast_O3 <- forecast(fit_rfO3$predictions)
+accuracy(fcast_O3)
+
+ggplot(test_O3, aes(test_O3$X, test_O3$x)) + geom_line(colour="darkred") + 
+  geom_point(aes(test_O3$X, pred_rfO3$predictions), shape= 1, colour='skyblue') +
+  labs(title = "Plot of Test (actual) vs Random Forest Prediction for O3 (Ozone)") + 
+  ylab("O3") + xlab("Hour Passed Since 2005") +
+  theme_minimal()
+  
+# PM2.5
+fit_rfPM25 <- ranger(form, data = train_PM25, num.trees = 300, mtry = 1, seed = 100)
+pred_rfPM25 <- predict(fit_rfPM25, test_PM25)
+
+fcast_PM25 <- forecast(fit_rfPM25$predictions)
+accuracy(fcast_PM25)
+
+ggplot(test_PM25, aes(test_PM25$X, test_PM25$x)) + geom_line(colour="darkred") + 
+  geom_point(aes(test_PM25$X, pred_rfPM25$predictions), shape= 1, colour='skyblue') +
+  labs(title = "Plot of Test (actual) vs Random Forest Prediction for PM2.5") +
+  ylab("PM2.5") + xlab("Hour Passed Since 2005") +
+  theme_minimal()
+```
+## Mean Forecast Errors
+
+In this study, I compare the naive mean as baseline with random forest mean forecast errors. Mean forecast error or MAE is the average of the forecast error values. An MAE value other than zero suggest tendency of the model to over forecast (negative error) or under forecast (positive error). 
+
+As noted earlier, the naive prediction is a very simple and crude way of forecasting. Comparing the MAE naive prediction with random forest prediciton provides a good measure of how well the random forest model is working. 
+
+Time series validation is also different than other types data. In the case of time series, a sliding window validation is one of the ways to validate prediction models.
+
+In the example below, the sliding time of 438 hours from the training data is selected. The reason for this number selection is purely due to CPU capabilities and limiting the number of validation cycles. In ideal scenario, the suggested approach would have been to use 10 days window (which is equal to 240 hours).
+
+### MAE Comparison for CO
+```{r}
+# CO Forecast and Validation
+mae1 <- matrix(data= 1, 20)
+
+for(i in 1:20){
+  end_indx <- i*438  #30 cycles
+  CO_window <- train_CO[i:end_indx, ]
+  fit1 <- ranger(form, data = CO_window)
+  fcast1 <- forecast(fit1$predictions)
+  mae1[i, 1] <- accuracy(fcast1)[3]
+}
+
+# Baseline Model Validation
+a_baseln <- cbind(lag(train_CO$x), train_CO$x)
+colnames(a_baseln) <- c('t-1', 't')
+a_baseln <- as.data.frame(a_baseln)
+a_baseln$dif <- (a_baseln$t - a_baseln$`t-1`)
+a_baseln$abs <- abs(a_baseln$dif)
+
+mae2 <- matrix(data= 1, 20)
+
+for(i in 1:20){
+  end_indx <- i*438  #30 cycles
+  CO_baselnwd <- a_baseln[i:end_indx, ]
+  mae2[i, 1] <- sum(a_baseln$abs, na.rm = TRUE)/(nrow(CO_baselnwd) -1)
+}
+
+cnt <- c(1:i)
+df1 <- data.frame(cnt, mae1, mae2)
+
+ggplot(df1, aes(x=df1$cnt)) + 
+  geom_line(aes(y=mae1), colour="red") +
+  geom_line(aes(y=mae2), colour="Blue") + 
+  scale_color_manual(name="Legend", values=c("red", "blue")) +
+  labs(title = "Validation of MAE Baseline vs. Randome Forest for CO", 
+       subtitle = "Red line random forest, Blue line naive prediction") +
+  xlab("Iterations") + ylab("MAE") + 
+  theme(legend.position = c(1,1))
+```
+
+### MAE Comparison for NO
+```{r}
+# NO Forecast and Validation
+mae3 <- matrix(data= 1, 20)
+
+for(i in 1:20){
+  end_indx <- i*438  #30 cycles
+  NO_window <- train_NO[i:end_indx, ]
+  fit2 <- ranger(form, data = NO_window)
+  fcast2 <- forecast(fit1$predictions)
+  mae1[i, 1] <- accuracy(fcast2)[3]
+}
+
+# Baseline Model Validation
+b_baseln <- cbind(lag(train_NO$x), train_NO$x)
+colnames(b_baseln) <- c('t-1', 't')
+b_baseln <- as.data.frame(b_baseln)
+b_baseln$dif <- (b_baseln$t - b_baseln$`t-1`)
+b_baseln$abs <- abs(b_baseln$dif)
+
+mae4 <- matrix(data= 1, 20)
+
+for(i in 1:20){
+  end_indx <- i*438  #30 cycles
+  NO_baselnwd <- b_baseln[i:end_indx, ]
+  mae4[i, 1] <- sum(b_baseln$abs, na.rm = TRUE)/(nrow(NO_baselnwd) -1)
+}
+
+cnt <- c(1:i)
+df2 <- data.frame(cnt, mae3, mae4)
+
+ggplot(df2, aes(x=df2$cnt)) + 
+  geom_line(aes(y=mae3), colour="red") +
+  geom_line(aes(y=mae4), colour="blue") + 
+  scale_color_manual(name="Legend", values=c("red", "blue")) +
+  labs(title = "Validation of MAE Baseline vs. Randome Forest for NO", 
+       subtitle = "Red line random forest, Blue line naive prediction") +
+  xlab("Iterations") + ylab("MAE") + 
+  theme(legend.position = c(1,1))
+```
+
+
+
+
+
+

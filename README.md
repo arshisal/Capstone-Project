@@ -25,7 +25,7 @@ Technically correct data do not have missing data, categories are not missing an
 + [Technically Correct Data - Meteorological](https://github.com/arshisal/Capstone-Project/blob/master/TCD_Meteo.Rmd)
 
 #### Exploratory Data Analysis
-+ [Exploratiry Data Analysis](https://github.com/arshisal/Capstone-Project/blob/master/EDA%20V3.0.Rmd)
++ [Exploratory Data Analysis](https://github.com/arshisal/Capstone-Project/blob/master/EDA%20V3.0.Rmd)
 #### Univariate Model
 + [ARIMA for Time Series (Univariate) and Naive Prediction for Baseline](https://github.com/arshisal/Capstone-Project/blob/master/Initial%20Analysis%20(ARIMA)%20V2.0.Rmd)
 + [Random Forest (Univariate) and Sliding Window Validation](https://github.com/arshisal/Capstone-Project/blob/master/Initial%20Analysis%20Random%20Forest%20V4.0.Rmd)
